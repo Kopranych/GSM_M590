@@ -51,7 +51,8 @@ enum mode{
 	step2,
 	step3,
 	step4,
-	step5	
+	step5,
+	step6	
 }gsm;
 
 //void init_delay(void);
@@ -93,7 +94,7 @@ void UART4_IRQHandler()
 		}
 		else
 		{
-	//		cc.count = 0;
+			cc.count = 0;
 			USART_ITConfig(UART4, USART_IT_TXE, DISABLE);
 		}
 	}
@@ -128,6 +129,7 @@ void EXTI0_IRQHandler()
 	FLAG.button_flag = 1;
 }
 
+uint8_t inspection_AT(uint8_t* buf_rx, uint8_t* AT);
 void clear_buf(uint8_t *buf);
 void buf_str(uint8_t *buf, uint8_t *str);
 void* init_struct(void* st, uint8_t x, void* u);
@@ -148,9 +150,12 @@ int main()
 	usart_init();
 //	usart_dma_ini();
 	cc.count = 1;
-	
+	uint8_t buf_rx[] = "MODEMt:STARTUPyyr";
 		
-	
+	if(inspection_AT(buf_rx, "MODEM:STARTUP"))
+	{
+		cc.count = 0;
+	}
 	while(1)
 	{
 		switch(gsm)
@@ -174,10 +179,15 @@ int main()
 				{
 					if(FLAG.rx_flag)
 					{
+						if(inspection_AT(buf_rx, "MODEM:STARTUP"))
+						{
+							GPIO_SetBits(GPIOD, ORANGE);
+						}
+						
 						if(!strcmp(buf.buf_rx, "MODEM:STARTUP$"))
 						{
 							GPIO_SetBits(GPIOD, GREEN);
-							gsm = step4;
+							gsm = step5;
 							
 						}
 						else	gsm = step1;
@@ -208,6 +218,11 @@ int main()
 					}
 				break;
 			case step5:
+				tx_at_gsm("AT+CPAS\r");
+			gsm = step6;
+				break;
+			case step6:
+				GPIO_SetBits(GPIOD, BLUE);
 				break;
 			default:
 				break;
@@ -282,9 +297,36 @@ void tx_at_gsm(uint8_t* temper)
 
 void clear_buf(uint8_t *bufe)
 {
-	int t = sizeof(bufe);
-	for(int i = 0; i< t; i++)
+	register int t = strlen(bufe);
+	for(register int i = 0; i< 40; i++)
 	{
 		bufe[i]=0;
 	}
+}
+
+
+uint8_t inspection_AT(uint8_t* buf_rx, uint8_t* AT)
+{
+	register uint8_t i = 0, b = 0, t = 0,* p;
+	p = buf_rx;
+	t = strlen(AT);
+	b = strlen(buf_rx);
+	for(i = 0; i < b+1; i++)
+	{	
+		if(*p != AT[i])
+		{
+			if(i>0) return 0;
+			p++;
+			i--;
+		}			 
+
+		else
+		{
+			p++;	
+		}	
+			if(i == t)
+				return 1;
+			
+	}
+	return 0;
 }
