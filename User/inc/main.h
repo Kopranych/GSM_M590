@@ -4,7 +4,7 @@
 
 #include "stm32f4xx.h"                  // Device header
 #include "stm32f4xx_rcc.h"
-#include "interrupt.h"
+//#include "interrupt.h"
 
 #define ORANGE 	GPIO_Pin_13
 #define GREEN 	GPIO_Pin_12
@@ -23,7 +23,7 @@ void init_perif(void)
 	GPIO_InitTypeDef GPIO_D, GPIO_A;// обьявляем структуру для инициализации портов
 	EXTI_InitTypeDef button;
 	//Устанавливаем режимы работы порта D
-	GPIO_D.GPIO_Pin = GREEN|ORANGE|RED|BLUE;
+	GPIO_D.GPIO_Pin = GREEN|ORANGE|RED|BLUE|GPIO_Pin_1;
 	GPIO_D.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_D.GPIO_Speed = GPIO_Low_Speed;
 	GPIO_D.GPIO_PuPd = GPIO_PuPd_NOPULL;
