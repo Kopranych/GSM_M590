@@ -150,7 +150,7 @@ int main()
 	usart_init();
 //	usart_dma_ini();
 	cc.count = 1;
-	uint8_t buf_rx[] = "MODEMt:STARTUPyyr";
+	uint8_t buf_rx[] = "dfgfgMODEM:STARTyyr";
 		
 	if(inspection_AT(buf_rx, "MODEM:STARTUP"))
 	{
@@ -307,24 +307,22 @@ void clear_buf(uint8_t *bufe)
 
 uint8_t inspection_AT(uint8_t* buf_rx, uint8_t* AT)
 {
-	register uint8_t i = 0, b = 0, t = 0,* p;
+	register uint8_t i = 0, x = 0, b = 0, t = 0,* p;
 	p = buf_rx;
 	t = strlen(AT);
 	b = strlen(buf_rx);
 	for(i = 0; i < b+1; i++)
 	{	
-		if(*p != AT[i])
+		if(p[i] != AT[x])
 		{
-			if(i>0) return 0;
-			p++;
-			i--;
+			x = 0;
 		}			 
 
 		else
 		{
-			p++;	
+			x++;	
 		}	
-			if(i == t)
+			if(x == t)
 				return 1;
 			
 	}
