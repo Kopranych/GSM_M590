@@ -49,10 +49,7 @@ uint16_t delay_count = 0;
 enum mode{
 	step1,
 	step2,
-	step3,
-	step4,
-	step5,
-	step6	
+//	step3,
 }gsm;
 
 //void init_delay(void);
@@ -129,6 +126,8 @@ void EXTI0_IRQHandler()
 	FLAG.button_flag = 1;
 }
 
+
+void reset_gsm(void);
 uint8_t inspection_AT(uint8_t* buf_rx, uint8_t* AT);
 void clear_buf(uint8_t *buf);
 void buf_str(uint8_t *buf, uint8_t *str);
@@ -149,56 +148,49 @@ int main()
 	init_perif();
 	usart_init();
 //	usart_dma_ini();
-	cc.count = 1;
-	uint8_t buf_rx[] = "dfgfgMODEM:STARTyyr";
-		
-	if(inspection_AT(buf_rx, "MODEM:STARTUP"))
-	{
-		cc.count = 0;
-	}
+//	cc.count = 1;
+	FLAG.rx_flag = 0;
+	gsm = step1;
+//		tx_at_gsm("AT+CPAS\r");
 	while(1)
-	{
-		switch(gsm)
-		{
+	{	
+		switch(gsm){
 			case step1:
-				GPIO_SetBits(GPIOD, PIN_BOOT);		
+		reset_gsm();
+
+		while(cc.count_data < 3)
+			{}
+		
+			GPIO_SetBits(GPIOD, RED);
+			gsm = step2;
+				clear_buf(buf.buf_rx);
+//			GPIO_ResetBits(GPIOD, RED);
+		break;
 			case step2:
-				if(!time)
-				{
-					GPIO_ResetBits(GPIOD, PIN_BOOT);
-					time = 500;
-					cc.size_rx = 0;
-					temp.temp_address = 0;
-					cc.count_data = 0;
-					gsm = step3;
-					clear_buf(buf.buf_rx);
-				}
+				break;
+	}
+/*	
 				break;
 			case step3:
 				if(!time)
 				{
-					if(FLAG.rx_flag)
+					if(cc.count_data == 3)
 					{
-						if(inspection_AT(buf_rx, "MODEM:STARTUP"))
+						if(inspection_AT(buf.buf_rx, "+PBREADY"))
 						{
 							GPIO_SetBits(GPIOD, ORANGE);
-						}
-						
-						if(!strcmp(buf.buf_rx, "MODEM:STARTUP$"))
-						{
-							GPIO_SetBits(GPIOD, GREEN);
 							gsm = step5;
-							
-						}
-						else	gsm = step1;
-											
+						}					
+						else
+						gsm = step1;
+						time = 200;
+						GPIO_ResetBits(GPIOD, ORANGE);									
 						FLAG.rx_flag = 0;
 					}
 					else 
 					{
-						gsm = step1;
+							gsm = step1;
 						time = 200;
-						GPIO_ResetBits(GPIOD, GREEN);
 					}
 				}
 				break;
@@ -222,49 +214,81 @@ int main()
 			gsm = step6;
 				break;
 			case step6:
+				if(inspection_AT(buf.buf_rx, "+CPAS: 0"))
 				GPIO_SetBits(GPIOD, BLUE);
 				break;
 			default:
 				break;
 		}
+		*/
 	}
+	
 }
+
 		
-/*		if(counter == 2)
-		{
-			__ASM {NOP};
-		}
-		if(FLAG.button_flag)
-		{
-			GPIO_ToggleBits(GPIOD, GREEN);
-			FLAG.button_flag = 0;
-		}
-		if(!cc.count)
-		{
-			tx_at_gsm("AT+CPAS\r");
-		}
-		if(FLAG.rx_flag)
-		{
-		
-			if(!strcmp(buf.buf_rx, "+PBREADY$"))
-		 {
-			GPIO_ToggleBits(GPIOD, GREEN);
-			 cc.count = 0;
-		 }
-		 else 
-			 if(!strcmp(buf.buf_rx, "+CPAS: 1$"))
-			 {
-				GPIO_ToggleBits(GPIOD, BLUE);
-			 }
-			 FLAG.rx_flag = 0;
- 	  }
-*/		
 
 	
 
 
 //-------------------------------------------------------------------
 //-------------------------------------------------------------------
+void reset_gsm(void)
+{/*
+			switch(gsm)
+			{
+			case step1:
+					tx_at_gsm("AT+CPWROFF\r");	
+					time = 1000;		
+					while(time);
+					GPIO_SetBits(GPIOD, PIN_BOOT);
+					time = 500;
+					while(time);
+					cc.count_data = 0;
+					cc.size_rx = 0;
+					temp.temp_address = 0;
+					GPIO_ResetBits(GPIOD, PIN_BOOT);
+
+//					time = 1000;
+					gsm = step2;
+				break;
+			case step2:
+				if(cc.count_data == 3)
+				{
+					if(inspection_AT(buf.buf_rx, "+PBREADY"))
+					{
+						GPIO_SetBits(GPIOD, BLUE);
+//						FLAG.rx_flag = 1;
+						clear_buf(buf.buf_rx);
+						gsm = step3;
+					}
+					else 
+					{
+						GPIO_ResetBits(GPIOD, BLUE);
+						gsm = step1;
+					}
+				}
+			}
+			
+*/	while(!FLAG.rx_flag)
+		{
+			tx_at_gsm("AT+CPWROFF\r");
+			delay_ms(1000);
+//			GPIO_SetBits(GPIOD, PIN_BOOT);
+//			delay_ms(500);
+			GPIO_ResetBits(GPIOD, PIN_BOOT);
+			delay_ms(1000);
+			if(inspection_AT(buf.buf_rx, "MODEM:STARTUP"))
+			{
+				GPIO_SetBits(GPIOD, BLUE);
+				FLAG.rx_flag = 1;
+			}
+			else 
+					GPIO_ResetBits(GPIOD, BLUE);
+		}
+				
+}
+
+
 void buf_str(uint8_t *buf, uint8_t *str)
 {
 	while(*str&&*buf)
@@ -275,10 +299,12 @@ void buf_str(uint8_t *buf, uint8_t *str)
 	}
 }
 
+
 void* init_struct(void* st, uint8_t x, void* u)
 {
 	return memset(st, x, sizeof(u));
 }
+
 
 void tx_at_gsm(uint8_t* temper)
 {
@@ -295,6 +321,7 @@ void tx_at_gsm(uint8_t* temper)
 	USART_ITConfig(UART4, USART_IT_TXE, ENABLE);
 }
 
+
 void clear_buf(uint8_t *bufe)
 {
 	register int t = strlen(bufe);
@@ -303,6 +330,7 @@ void clear_buf(uint8_t *bufe)
 		bufe[i]=0;
 	}
 }
+
 
 
 uint8_t inspection_AT(uint8_t* buf_rx, uint8_t* AT)
