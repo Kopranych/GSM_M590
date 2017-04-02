@@ -49,7 +49,7 @@ uint16_t delay_count = 0;
 enum mode{
 	step1,
 	step2,
-//	step3,
+	step3,
 }gsm;
 
 //void init_delay(void);
@@ -133,7 +133,7 @@ void clear_buf(uint8_t *buf);
 void buf_str(uint8_t *buf, uint8_t *str);
 void* init_struct(void* st, uint8_t x, void* u);
 void tx_at_gsm(uint8_t* temp);
-
+uint8_t setup_gsm(void);
 //-------------------------------------------------------------------
 //-------------------------------------------------------------------
 int main()
@@ -151,22 +151,42 @@ int main()
 //	cc.count = 1;
 	FLAG.rx_flag = 0;
 	gsm = step1;
-//		tx_at_gsm("AT+CPAS\r");
 	while(1)
 	{	
 		switch(gsm){
 			case step1:
 		reset_gsm();
-
+			time = 25000;
 		while(cc.count_data < 3)
-			{}
-		
-			GPIO_SetBits(GPIOD, RED);
-			gsm = step2;
+			{
+				if(!time)
+					break;
+			}
+			if(!time)
+			{
+				gsm = step1;
+				GPIO_ResetBits(GPIOD, RED);
+			}
+			else
+			{
+				time = 0;
+				GPIO_SetBits(GPIOD, RED);
+				gsm = step2;
 				clear_buf(buf.buf_rx);
-//			GPIO_ResetBits(GPIOD, RED);
+			}		
 		break;
 			case step2:
+				if(setup_gsm())
+				{
+					gsm = step3;
+					GPIO_SetBits(GPIOD, GREEN);
+				}
+				else {
+					gsm = step1;
+					GPIO_ResetBits(GPIOD, GREEN);
+				}
+				break;
+			case step3:
 				break;
 	}
 /*	
@@ -233,43 +253,8 @@ int main()
 //-------------------------------------------------------------------
 //-------------------------------------------------------------------
 void reset_gsm(void)
-{/*
-			switch(gsm)
-			{
-			case step1:
-					tx_at_gsm("AT+CPWROFF\r");	
-					time = 1000;		
-					while(time);
-					GPIO_SetBits(GPIOD, PIN_BOOT);
-					time = 500;
-					while(time);
-					cc.count_data = 0;
-					cc.size_rx = 0;
-					temp.temp_address = 0;
-					GPIO_ResetBits(GPIOD, PIN_BOOT);
-
-//					time = 1000;
-					gsm = step2;
-				break;
-			case step2:
-				if(cc.count_data == 3)
-				{
-					if(inspection_AT(buf.buf_rx, "+PBREADY"))
-					{
-						GPIO_SetBits(GPIOD, BLUE);
-//						FLAG.rx_flag = 1;
-						clear_buf(buf.buf_rx);
-						gsm = step3;
-					}
-					else 
-					{
-						GPIO_ResetBits(GPIOD, BLUE);
-						gsm = step1;
-					}
-				}
-			}
-			
-*/	while(!FLAG.rx_flag)
+{
+	while(!FLAG.rx_flag)
 		{
 			tx_at_gsm("AT+CPWROFF\r");
 			delay_ms(1000);
@@ -355,4 +340,29 @@ uint8_t inspection_AT(uint8_t* buf_rx, uint8_t* AT)
 			
 	}
 	return 0;
+}
+
+uint8_t setup_gsm(void)
+{
+	tx_at_gsm("ATE0\r");// Eho disable
+	if(!(inspection_AT(buf.buf_rx, "OK")))
+	{
+		return 0;
+	}
+	clear_buf(buf.buf_rx);
+	
+	tx_at_gsm("AT+CLIP=1\r");// Enable AOH
+	if(!(inspection_AT(buf.buf_rx, "OK")))
+	{
+		return 0;
+	}
+	clear_buf(buf.buf_rx);
+	
+	tx_at_gsm("AT+CMGF=1\r");// Enable AOH
+	if(!(inspection_AT(buf.buf_rx, "OK")))
+	{
+		return 0;
+	}
+	clear_buf(buf.buf_rx);
+	return 1;
 }
