@@ -11,6 +11,7 @@ typedef struct{
 	uint8_t button_flag;
 	uint8_t rx_flag;
 	uint8_t tx_flag;
+	uint8_t valid_flag;
 }struct_flag;
 
 struct_flag FLAG;
@@ -156,8 +157,8 @@ int main()
 		switch(gsm){
 			case step1:
 		reset_gsm();
-			time = 25000;
-		while(cc.count_data < 3)
+			time = 20000;
+		while(!(inspection_AT(buf.buf_rx, "+PBREADY")))
 			{
 				if(!time)
 					break;
@@ -166,11 +167,13 @@ int main()
 			{
 				gsm = step1;
 				GPIO_ResetBits(GPIOD, RED);
+				GPIO_ResetBits(GPIOD, BLUE);
 			}
 			else
 			{
 				time = 0;
 				GPIO_SetBits(GPIOD, RED);
+				delay_ms(2000);
 				gsm = step2;
 				clear_buf(buf.buf_rx);
 			}		
@@ -179,68 +182,19 @@ int main()
 				if(setup_gsm())
 				{
 					gsm = step3;
-					GPIO_SetBits(GPIOD, GREEN);
+					GPIO_SetBits(GPIOD, ORANGE);
 				}
 				else {
 					gsm = step1;
-					GPIO_ResetBits(GPIOD, GREEN);
+					GPIO_ResetBits(GPIOD, ORANGE);
+					GPIO_ResetBits(GPIOD, RED);
+					GPIO_ResetBits(GPIOD, BLUE);
 				}
 				break;
 			case step3:
-				break;
-	}
-/*	
-				break;
-			case step3:
-				if(!time)
-				{
-					if(cc.count_data == 3)
-					{
-						if(inspection_AT(buf.buf_rx, "+PBREADY"))
-						{
-							GPIO_SetBits(GPIOD, ORANGE);
-							gsm = step5;
-						}					
-						else
-						gsm = step1;
-						time = 200;
-						GPIO_ResetBits(GPIOD, ORANGE);									
-						FLAG.rx_flag = 0;
-					}
-					else 
-					{
-							gsm = step1;
-						time = 200;
-					}
-				}
-				break;
-				
-			case step4:
-				if(FLAG.rx_flag)
-				{
-					GPIO_SetBits(GPIOD, BLUE);
-					gsm = step5;
-					FLAG.rx_flag = 0;
-				}
-				else 
-					{
-						gsm = step1;
-						time = 200;
-						GPIO_ResetBits(GPIOD, BLUE);
-					}
-				break;
-			case step5:
-				tx_at_gsm("AT+CPAS\r");
-			gsm = step6;
-				break;
-			case step6:
-				if(inspection_AT(buf.buf_rx, "+CPAS: 0"))
-				GPIO_SetBits(GPIOD, BLUE);
-				break;
-			default:
 				break;
 		}
-		*/
+
 	}
 	
 }
@@ -254,18 +208,23 @@ int main()
 //-------------------------------------------------------------------
 void reset_gsm(void)
 {
-	while(!FLAG.rx_flag)
+	while(!FLAG.valid_flag)
 		{
+			delay_ms(500);
 			tx_at_gsm("AT+CPWROFF\r");
 			delay_ms(1000);
-//			GPIO_SetBits(GPIOD, PIN_BOOT);
-//			delay_ms(500);
+			GPIO_SetBits(GPIOD, PIN_BOOT);
+			delay_ms(160);
 			GPIO_ResetBits(GPIOD, PIN_BOOT);
 			delay_ms(1000);
 			if(inspection_AT(buf.buf_rx, "MODEM:STARTUP"))
 			{
 				GPIO_SetBits(GPIOD, BLUE);
-				FLAG.rx_flag = 1;
+				FLAG.valid_flag = 1;
+//				clear_buf(buf.buf_rx);
+//				cc.count = 0;
+//				cc.size_rx = 0;
+//				temp.temp_address = 0;
 			}
 			else 
 					GPIO_ResetBits(GPIOD, BLUE);
@@ -302,8 +261,8 @@ void tx_at_gsm(uint8_t* temper)
 	cc.count = 0;
 	cc.size_rx = 0;
 	temp.temp_address = 0;
-	
-	USART_ITConfig(UART4, USART_IT_TXE, ENABLE);
+	cc.count_data = 0;
+	USART_ITConfig(UART4, USART_IT_TXE, ENABLE);// Enable interrupt
 }
 
 
@@ -345,20 +304,21 @@ uint8_t inspection_AT(uint8_t* buf_rx, uint8_t* AT)
 uint8_t setup_gsm(void)
 {
 	tx_at_gsm("ATE0\r");// Eho disable
+	delay_ms(500);
 	if(!(inspection_AT(buf.buf_rx, "OK")))
 	{
 		return 0;
 	}
 	clear_buf(buf.buf_rx);
-	
 	tx_at_gsm("AT+CLIP=1\r");// Enable AOH
-	if(!(inspection_AT(buf.buf_rx, "OK")))
+	delay_ms(500);
+	while(!(inspection_AT(buf.buf_rx, "OK")))
 	{
 		return 0;
 	}
 	clear_buf(buf.buf_rx);
-	
-	tx_at_gsm("AT+CMGF=1\r");// Enable AOH
+	tx_at_gsm("AT+CMGF=1\r");// text format sms
+	delay_ms(500);
 	if(!(inspection_AT(buf.buf_rx, "OK")))
 	{
 		return 0;
