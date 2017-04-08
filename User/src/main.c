@@ -151,6 +151,7 @@ int main()
 //	usart_dma_ini();
 //	cc.count = 1;
 	FLAG.rx_flag = 0;
+	FLAG.button_flag = 0;
 	gsm = step1;
 	while(1)
 	{	
@@ -192,6 +193,27 @@ int main()
 				}
 				break;
 			case step3:
+				if(FLAG.button_flag)
+				{
+					tx_at_gsm("ATD+79670250035;\r");
+					delay_ms(500);
+					if(inspection_AT(buf.buf_rx, "OK"))
+					{
+						clear_buf(buf.buf_rx);
+						GPIO_SetBits(GPIOD, GREEN);
+						delay_ms(10000);
+						tx_at_gsm("ATH\r");
+						delay_ms(500);
+						tx_at_gsm("ATH\r");
+						if(!(inspection_AT(buf.buf_rx, "OK")))
+						{
+							tx_at_gsm("ATH1\r");
+							clear_buf(buf.buf_rx);
+						}
+						FLAG.button_flag = 0;
+						GPIO_ResetBits(GPIOD, GREEN);
+					}
+				}
 				break;
 		}
 
