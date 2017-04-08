@@ -212,6 +212,21 @@ int main()
 						}
 						FLAG.button_flag = 0;
 						GPIO_ResetBits(GPIOD, GREEN);
+						clear_buf(buf.buf_rx);
+						cc.count_data = 0;
+						clear_buf(buf.buf_rx);
+					}
+				}
+				if(cc.count_data == 2)
+				{
+					if(inspection_AT(buf.buf_rx, "670250035"))
+					{
+						cc.count_data = 0;
+						GPIO_ToggleBits(GPIOD, RED);
+						tx_at_gsm("ATH\r");
+						delay_ms(500);
+						tx_at_gsm("ATH\r");		
+						clear_buf(buf.buf_rx);
 					}
 				}
 				break;
@@ -346,5 +361,6 @@ uint8_t setup_gsm(void)
 		return 0;
 	}
 	clear_buf(buf.buf_rx);
+	cc.count_data = 0;
 	return 1;
 }
